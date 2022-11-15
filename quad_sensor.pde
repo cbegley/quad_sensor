@@ -28,7 +28,16 @@ static final int S3 = 149;
 
 int chipSelectPin;
 int nextSelect;
+
+float x_last=0, y_last=0, z_last=0;
+float x_add, y_add, z_add;
+float alpha=0.3;
+float[] sumX = {0,0,0,0};
+float[] sumY = {0,0,0,0};
+float[] sumZ = {0,0,0,0};
+int[] aCount = {1,1,1,1};
 boolean pinChange=false;
+boolean evenOdd = true;
 
 void setup() {
   size(600,400);
@@ -87,20 +96,27 @@ void setup() {
 void draw() {
   
   background(255);
+  
   if (pinChange) {
     selectSensor(currentSensor);
     pinChange = false;
   }
+ 
   int x_ch = readRegister((byte) X_CH_RESULT, (byte) 0x00, (byte) 0x00, (byte) 0x00);
-  delay(30);
   int y_ch = readRegister((byte) Y_CH_RESULT, (byte) 0x00, (byte) 0x00, (byte) 0x00);
-  delay(30);
   int z_ch = readRegister((byte) Z_CH_RESULT, (byte) 0x00, (byte) 0x00, (byte) 0x00);
-  delay(30);
   
-  points_x.add(points_count, x_ch);
-  points_y.add(points_count, y_ch);
-  points_z.add(points_count, z_ch);
+  x_add = x_last + alpha*(x_ch - x_last);
+  y_add = y_last + alpha*(y_ch - y_last);
+  z_add = z_last + alpha*(z_ch - z_last);
+ 
+  points_x.add(points_count, x_add);
+  points_y.add(points_count, y_add);
+  points_z.add(points_count, z_add);
+  
+  x_last = x_add;
+  y_last = y_add;
+  z_last = z_add;
   points_count++;
   
   if (points_count >= npoints-1) {
@@ -131,7 +147,35 @@ void draw() {
   plot_z.drawPoints();
   plot_z.drawLines();
   plot_z.endDraw();
+  
+  for (int i=0; i<4; i++) {
+    selectSensor(i);
+    int px = readRegister((byte) X_CH_RESULT, (byte) 0x00, (byte) 0x00, (byte) 0x00);
+    int py = readRegister((byte) Y_CH_RESULT, (byte) 0x00, (byte) 0x00, (byte) 0x00);
+    int pz = readRegister((byte) Z_CH_RESULT, (byte) 0x00, (byte) 0x00, (byte) 0x00);
+    
+    sumX[i] += px;
+    sumY[i] += py;
+    sumZ[i] += pz;
+    aCount[i]++;
+  }
+  selectSensor(currentSensor);
+}
 
+void printAverages() {
+ for (int i=0; i<4; i++) {
+   println("Channel ",i,sumX[i]/aCount[i],sumY[i]/aCount[i],sumZ[i]/aCount[i]);
+ }
+ println("");
+}
+
+void resetAverages() {
+ for (int i=0; i<4; i++) {
+   sumX[i] = 0;
+   sumY[i] = 0;
+   sumZ[i] = 0;
+   aCount[i] = 1;
+ }
 }
 
 void selectSensor(int nsensor) {
@@ -197,16 +241,23 @@ void keyPressed() {
    currentSensor = 0;
    pinChange = true;
  }
-  if (key == '2') {
+ if (key == '2') {
    currentSensor = 1;
    pinChange = true;
  }
-  if (key == '3') {
+ if (key == '3') {
    currentSensor = 2;
    pinChange = true;
  }
-  if (key == '4') {
+ if (key == '4') {
    currentSensor = 3;
    pinChange = true;
  }
+ if (key == 'r') {
+   resetAverages();
+ }
+ if (key == 'p') {
+   printAverages();
+ }
+ 
 }
